@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StoneWorks Designer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2e2b28;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#e8e2da;--muted:#8a837a;
+  --gold:#c8922a;--gold-light:#e8b84b;--gold-dim:rgba(200,146,42,0.15);
+  --green:#4a9e6e;--green-dim:rgba(74,158,110,0.15);
+  --red:#b84a3a;--red-dim:rgba(184,74,58,0.15);
+  --blue:#3a7ab8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Lato',sans-serif;font-weight:300;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* HEADER */
+.dt-header{background:var(--surface);border-bottom:2px solid var(--gold);padding:0 16px;display:flex;align-items:center;gap:12px;height:52px;flex-shrink:0;}
+.dt-brand{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--gold);}
+.dt-so-label{font-family:'Syne Mono',monospace;font-size:11px;color:var(--muted);}
+.dt-spacer{flex:1;}
+.dt-rule-status{font-size:11px;padding:4px 10px;font-family:'Syne Mono',monospace;}
+
+/* LAYOUT */
+.dt-body{display:flex;flex:1;overflow:hidden;}
+
+/* LEFT PANEL */
+.dt-left{width:210px;background:var(--surface);border-right:1px solid var(--border2);padding:10px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:12px;}
+.dt-section-label{font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;}
+
+/* CANVAS */
+.dt-canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;background:#111;overflow:hidden;position:relative;}
+
+/* RIGHT PANEL */
+.dt-right{width:190px;background:var(--surface);border-left:1px solid var(--border2);padding:10px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+
+/* CONTROLS */
+select,input[type="text"],input[type="number"]{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:6px 8px;font-family:'Lato',sans-serif;font-size:12px;width:100%;outline:none;}
+select:focus,input:focus{border-color:var(--gold);}
+.btn{font-family:'Syne Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;}
+.btn-primary{background:var(--gold);color:#0f0e0d;font-weight:700;}
+.btn-primary:hover{background:var(--gold-light);}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.btn-danger{background:var(--red-dim);border:1px solid rgba(184,74,58,0.4);color:#e07060;}
+.btn-sm{padding:5px 10px;font-size:9px;}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+
+/* REVISION LIST */
+.rev-item{padding:6px 8px;background:var(--surface2);border:1px solid var(--border);margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.rev-item:hover{border-color:var(--gold);}
+.rev-item.approved{border-color:var(--green);}
+
+/* ELEMENT LIST */
+.el-item{padding:5px 8px;border-bottom:1px solid var(--border);cursor:pointer;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.el-item:hover,.el-item.selected{color:var(--gold);background:var(--gold-dim);}
+
+/* RULE ITEMS */
+.rule-ok{color:var(--green);font-size:11px;padding:3px 0;}
+.rule-err{color:var(--red);font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);}
+
+.badge{font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 7px;display:inline-block;}
+.badge-ok{background:var(--green-dim);color:#6ec894;border:1px solid rgba(74,158,110,0.3);}
+.badge-err{background:var(--red-dim);color:#e07060;border:1px solid rgba(184,74,58,0.3);}
+
+.loading{text-align:center;padding:20px;color:var(--muted);font-family:'Syne Mono',monospace;font-size:11px;}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="dt-header">
+  <div class="dt-brand">✏ StoneWorks Designer</div>
+  <div class="dt-so-label" id="dt-so-label">Loading…</div>
+  <div class="dt-spacer"></div>
+  <div id="dt-rule-status" class="dt-rule-status badge"></div>
+  <button class="btn btn-ghost btn-sm" onclick="saveDraft()" style="width:auto;margin-left:8px;">💾 Save Draft</button>
+  <button class="btn btn-primary btn-sm" id="dt-approve-btn" onclick="approveDesign()" style="width:auto;margin-left:6px;" disabled>✓ Approve & Create WO</button>
+</div>
+
+<!-- BODY -->
+<div class="dt-body">
+
+  <!-- LEFT PANEL -->
+  <div class="dt-left">
+
+    <div>
+      <div class="dt-section-label">Panel Size</div>
+      <select id="dt-panel" onchange="dtSetPanel()">
+        <option value="8x6">8×6" Small</option>
+        <option value="12x10">12×10" Medium</option>
+        <option value="18x12" selected>18×12" Large</option>
+        <option value="24x16">24×16" XL</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="dt-section-label">Polish Finish</div>
+      <select id="dt-finish" onchange="dtRender()">
+        <option value="full">Full Polish</option>
+        <option value="sawn">Sawn</option>
+        <option value="rockpitch">Rock Pitch</option>
+        <option value="thermal">Thermal</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="dt-section-label">Add Text</div>
+      <input id="dt-text-input" placeholder="Enter text…" style="margin-bottom:5px;"/>
+      <select id="dt-font-select" style="margin-bottom:5px;">
+        <option value="roman">Roman Serif</option>
+        <option value="oldeng">Old English</option>
+        <option value="script">Script</option>
+        <option value="block">Block Sans</option>
+        <option value="italic">Italic Serif</option>
+      </select>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <label style="font-size:10px;color:var(--muted);white-space:nowrap;font-family:'Syne Mono',monospace;letter-spacing:1px;text-transform:uppercase;">Size (in)</label>
+        <input id="dt-font-size" type="number" step="0.25" min="0.25" value="1.5" style="width:65px;"/>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="dtAddText()">+ Add Text</button>
+    </div>
+
+    <div>
+      <div class="dt-section-label">Components</div>
+      <div class="btn-grid" style="margin-bottom:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="dtAddComponent('paw')" title="Paw Print">🐾 Paw</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddComponent('rose')" title="Rose">🌹 Rose</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddComponent('cross')" title="Cross">✝ Cross</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddComponent('dove')" title="Dove">🕊 Dove</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddComponent('heart')" title="Heart">♡ Heart</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddComponent('star')" title="Star">★ Star</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label style="font-size:10px;color:var(--muted);white-space:nowrap;font-family:'Syne Mono',monospace;letter-spacing:1px;text-transform:uppercase;">Size (in)</label>
+        <input id="dt-comp-size" type="number" step="0.25" min="0.5" value="2" style="width:65px;"/>
+      </div>
+    </div>
+
+    <div>
+      <div class="dt-section-label">Border</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <button class="btn btn-ghost btn-sm" onclick="dtAddBorder('single')">Single Line</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddBorder('double')">Double Line</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtAddBorder('ornate')">Ornate</button>
+        <button class="btn btn-danger btn-sm" onclick="dtRemoveBorder()">Remove Border</button>
+      </div>
+    </div>
+
+    <div id="dt-selected-panel" style="display:none;">
+      <div class="dt-section-label">Selected</div>
+      <div id="dt-selected-label" style="font-size:11px;color:var(--muted);margin-bottom:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="dtMoveSelected('up')">↑ Up  (⅛")</button>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="dtMoveSelected('left')">← Left</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="dtMoveSelected('right')">Right →</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="dtMoveSelected('down')">↓ Down (⅛")</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtScaleSelected(1.15)">＋ Larger</button>
+        <button class="btn btn-ghost btn-sm" onclick="dtScaleSelected(0.87)">－ Smaller</button>
+        <button class="btn btn-danger btn-sm" onclick="dtDeleteSelected()">✕ Delete</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="dt-section-label">Revisions</div>
+      <div id="dt-revisions-list" style="font-size:11px;color:var(--muted);">No revisions yet</div>
+    </div>
+
+  </div>
+
+  <!-- CANVAS -->
+  <div class="dt-canvas-wrap" id="dt-canvas-wrap">
+    <div id="dt-canvas-container">
+      <svg id="dt-canvas" style="cursor:default;display:block;user-select:none;"
+        onclick="dtCanvasClick(event)"
+        onmousedown="dtCanvasDown(event)"
+        onmousemove="dtCanvasDrag(event)"
+        onmouseup="dtCanvasUp(event)"></svg>
+    </div>
+    <div id="dt-loading" class="loading" style="position:absolute;"><span class="spinner"></span>Loading order…</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="dt-right">
+
+    <div>
+      <div class="dt-section-label">Rule Check</div>
+      <div id="dt-rules-panel" style="display:flex;flex-direction:column;gap:4px;">
+        <div class="rule-ok">No elements yet</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="dt-section-label">Elements</div>
+      <div id="dt-elements-list" style="color:var(--muted);font-size:11px;">—</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:5px;margin-top:auto;padding-top:10px;border-top:1px solid var(--border);">
+      <button class="btn btn-ghost btn-sm" onclick="dtExportPLT()">⬇ Export PLT</button>
+      <button class="btn btn-ghost btn-sm" onclick="dtClearAll()">🗑 Clear Canvas</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// SUPABASE CONFIG — same project
+// ════════════════════════════════════════
+const SUPA_URL = 'https://cuiffsyzzolqgozjeewt.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1aWZmc3l6em9scWdvemplZXd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2Nzg2NjgsImV4cCI6MjA5NjI1NDY2OH0.h7oWEY7xYf7j6KzMed-MGcjwYLOFlg2AGWj7Hs2youQ';
+const HEADERS = {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'};
+
+async function sb(method,table,body=null,query=''){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${table}${query}`,{method,headers:HEADERS,body:body?JSON.stringify(body):null});
+  if(!res.ok){const e=await res.text();throw new Error(e);}
+  if(res.status===204) return [];
+  return res.json();
+}
+const get  = (t,q='')=>sb('GET',t,null,q);
+const post = (t,b)   =>sb('POST',t,b);
+const patch= (t,b,q) =>sb('PATCH',t,b,q);
+
+// ════════════════════════════════════════
+// CONSTANTS
+// ════════════════════════════════════════
+const HPGL_UNITS = 1016; // 1 inch = 1016 HPGL units (Datagraph standard)
+const DT_PANELS  = {'8x6':[8,6],'12x10':[12,10],'18x12':[18,12],'24x16':[24,16]};
+const DT_RULES   = {borderMargin:0.5, elementGap:0.125, minTextHeight:0.5};
+const FINISH_BG  = {full:'#1e1e1e',sawn:'#2e2922',rockpitch:'#38332e',thermal:'#252020'};
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let SO    = null;   // loaded sales order
+let PROD  = null;   // loaded product
+let soId  = null;
+
+let DT = {
+  panelW:18, panelH:12, finish:'full',
+  elements:[],   // {id,type,text?,font?,fontSize?,compType?,size?,borderType?,x,y}
+  selected:null,
+  scale:1,
+  revisions:[],
+};
+
+let dragState = null; // {elId, startMx, startMy, startElX, startElY}
+
+// ════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════
+window.addEventListener('load', async ()=>{
+  const params = new URLSearchParams(window.location.search);
+  soId = params.get('so');
+  if(!soId){ showError('No SO ID in URL. Open this page from a Sales Order.'); return; }
+
+  try {
+    const [sos, prods, revs] = await Promise.all([
+      get('sales_orders',`?id=eq.${soId}&limit=1`),
+      get('products','?order=sku'),
+      get('so_designs',`?so_id=eq.${soId}&order=revision`).catch(()=>[]),
+    ]);
+
+    SO   = sos[0];
+    PROD = SO ? prods.find(p=>p.sku===SO.product_sku) : null;
+    DT.revisions = revs||[];
+
+    if(!SO){ showError(`Sales order ${soId} not found.`); return; }
+
+    document.getElementById('dt-so-label').textContent =
+      `${SO.id} — ${SO.customer} | ${PROD?.name||SO.product_sku} ${PROD?.size?`(${PROD.size})`:''}`;
+
+    // Auto-set panel from product size
+    const sizeMap={'8×6"':'8x6','12×10"':'12x10','18×12"':'18x12','24×16"':'24x16'};
+    const pk = sizeMap[PROD?.size||'']||'18x12';
+    document.getElementById('dt-panel').value = pk;
+    dtSetPanel(false);
+
+    // Pre-populate from engraving text
+    if(SO.engraving_text){
+      const fontKey = fontKeyFromName(SO.font||'');
+      const lines = SO.engraving_text.split('\n').filter(l=>l.trim());
+      let y = DT.panelH*0.25;
+      lines.forEach((line,i)=>{
+        const fs = i===0?1.5:1.0;
+        DT.elements.push({id:Date.now()+i,type:'text',text:line,font:fontKey,fontSize:fs,x:DT.panelW/2,y});
+        y += fs*1.4;
+      });
+    }
+
+    // Load latest draft if exists
+    if(DT.revisions.length){
+      const latest = DT.revisions[DT.revisions.length-1];
+      if(latest.status!=='approved') loadRevisionData(latest);
+    }
+
+    document.getElementById('dt-loading').style.display='none';
+    renderRevisionList();
+    dtFitCanvas();
+    dtRender();
+
+  } catch(e){
+    showError('Error loading order: '+e.message);
+  }
+});
+
+window.addEventListener('resize',()=>{ dtFitCanvas(); dtRender(); });
+
+function showError(msg){
+  document.getElementById('dt-loading').innerHTML = `<div style="color:var(--red);">⚠ ${msg}</div>`;
+}
+
+function showToast(msg, type=''){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';
+    t.style.cssText='position:fixed;bottom:20px;right:20px;padding:10px 18px;font-family:"Syne Mono",monospace;font-size:11px;z-index:999;background:var(--surface);border:1px solid var(--border2);border-left:3px solid var(--gold);transition:opacity .3s;max-width:320px;';
+    document.body.appendChild(t);}
+  t.style.borderLeftColor=type==='red'?'var(--red)':type==='green'?'var(--green)':'var(--gold)';
+  t.textContent=msg; t.style.opacity=1;
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>{t.style.opacity=0;},3500);
+}
+
+function fontKeyFromName(name){
+  const map={'Classic Roman':'roman','Old English':'oldeng','Script Cursive':'script','Modern Sans':'block','Block Letter':'block','Garamond Serif':'italic'};
+  return map[name]||'roman';
+}
+
+// ════════════════════════════════════════
+// VECTOR STROKE FONT
+// Each letter: {w: relative_width, paths: [[x0,y0,x1,y1,...], ...]}
+// x: 0..w, y: 0(top)..1(baseline)
+// ════════════════════════════════════════
+function buildFont(){
+  const f={};
+  f['A']={w:.7,p:[[.35,0,0,1],[.35,0,.7,1],[.1,.55,.6,.55]]};
+  f['B']={w:.65,p:[[0,0,0,1],[0,0,.5,0],[.5,0,.6,.15],[.6,.15,.6,.45],[.6,.45,.5,.5],[0,.5,.5,.5],[.5,.5,.62,.65],[.62,.65,.62,.85],[.62,.85,.5,1],[.5,1,0,1]]};
+  f['C']={w:.6,p:[[.6,.15,.4,0],[.4,0,.1,0],[.1,0,0,.2],[0,.2,0,.8],[0,.8,.1,1],[.1,1,.4,1],[.4,1,.6,.85]]};
+  f['D']={w:.65,p:[[0,0,0,1],[0,0,.4,0],[.4,0,.6,.15],[.6,.15,.65,.35],[.65,.35,.65,.65],[.65,.65,.6,.85],[.6,.85,.4,1],[.4,1,0,1]]};
+  f['E']={w:.58,p:[[0,0,0,1],[0,0,.58,0],[0,.5,.48,.5],[0,1,.58,1]]};
+  f['F']={w:.55,p:[[0,0,0,1],[0,0,.55,0],[0,.5,.45,.5]]};
+  f['G']={w:.65,p:[[.65,.15,.4,0],[.4,0,.1,0],[.1,0,0,.2],[0,.2,0,.8],[0,.8,.1,1],[.1,1,.4,1],[.4,1,.65,.85],[.65,.85,.65,.5],[.65,.5,.35,.5]]};
+  f['H']={w:.65,p:[[0,0,0,1],[.65,0,.65,1],[0,.5,.65,.5]]};
+  f['I']={w:.25,p:[[.125,0,.125,1],[0,0,.25,0],[0,1,.25,1]]};
+  f['J']={w:.5,p:[[.5,0,.5,.8],[.5,.8,.35,.95],[.35,.95,.15,1],[.15,1,0,.85],[0,0,.5,0]]};
+  f['K']={w:.65,p:[[0,0,0,1],[.65,0,.08,.5],[.08,.5,.65,1]]};
+  f['L']={w:.55,p:[[0,0,0,1],[0,1,.55,1]]};
+  f['M']={w:.8,p:[[0,1,0,0],[0,0,.4,.65],[.4,.65,.8,0],[.8,0,.8,1]]};
+  f['N']={w:.65,p:[[0,1,0,0],[0,0,.65,1],[.65,1,.65,0]]};
+  f['O']={w:.7,p:[[.35,0,.1,.05],[.1,.05,0,.2],[0,.2,0,.8],[0,.8,.1,.95],[.1,.95,.35,1],[.35,1,.6,.95],[.6,.95,.7,.8],[.7,.8,.7,.2],[.7,.2,.6,.05],[.6,.05,.35,0]]};
+  f['P']={w:.6,p:[[0,0,0,1],[0,0,.45,0],[.45,0,.6,.1],[.6,.1,.6,.42],[.6,.42,.45,.52],[.45,.52,0,.52]]};
+  f['Q']={w:.7,p:[[.35,0,.1,.05],[.1,.05,0,.2],[0,.2,0,.8],[0,.8,.1,.95],[.1,.95,.35,1],[.35,1,.6,.95],[.6,.95,.7,.8],[.7,.8,.7,.2],[.7,.2,.6,.05],[.6,.05,.35,0],[.42,.72,.72,1]]};
+  f['R']={w:.65,p:[[0,0,0,1],[0,0,.45,0],[.45,0,.6,.1],[.6,.1,.6,.42],[.6,.42,.45,.52],[.45,.52,0,.52],[.32,.52,.65,1]]};
+  f['S']={w:.6,p:[[.6,.1,.5,0],[.5,0,.1,0],[.1,0,0,.15],[0,.15,0,.4],[0,.4,.1,.5],[.1,.5,.5,.5],[.5,.5,.6,.6],[.6,.6,.6,.85],[.6,.85,.5,1],[.5,1,.1,1],[.1,1,0,.9]]};
+  f['T']={w:.65,p:[[.325,0,.325,1],[0,0,.65,0]]};
+  f['U']={w:.65,p:[[0,0,0,.8],[0,.8,.1,.95],[.1,.95,.325,1],[.325,1,.55,.95],[.55,.95,.65,.8],[.65,.8,.65,0]]};
+  f['V']={w:.7,p:[[0,0,.35,1],[.35,1,.7,0]]};
+  f['W']={w:.9,p:[[0,0,.2,1],[.2,1,.45,.4],[.45,.4,.7,1],[.7,1,.9,0]]};
+  f['X']={w:.65,p:[[0,0,.65,1],[.65,0,0,1]]};
+  f['Y']={w:.65,p:[[0,0,.325,.52],[.65,0,.325,.52],[.325,.52,.325,1]]};
+  f['Z']={w:.65,p:[[0,0,.65,0],[.65,0,0,1],[0,1,.65,1]]};
+  f['0']={w:.6,p:[[.3,0,.05,.1],[.05,.1,0,.3],[0,.3,0,.7],[0,.7,.05,.9],[.05,.9,.3,1],[.3,1,.55,.9],[.55,.9,.6,.7],[.6,.7,.6,.3],[.6,.3,.55,.1],[.55,.1,.3,0]]};
+  f['1']={w:.4,p:[[.2,0,.2,1],[0,.22,.2,0],[0,1,.4,1]]};
+  f['2']={w:.6,p:[[0,.18,.12,.06],[.12,.06,.3,0],[.3,0,.5,.06],[.5,.06,.6,.22],[.6,.22,.55,.42],[.55,.42,0,1],[0,1,.6,1]]};
+  f['3']={w:.6,p:[[.05,0,.5,0],[.5,0,.6,.12],[.6,.12,.55,.46],[.55,.46,.3,.5],[.3,.5,.55,.54],[.55,.54,.6,.86],[.6,.86,.5,1],[.5,1,.05,1]]};
+  f['4']={w:.65,p:[[.5,0,.5,1],[.5,0,0,.65],[0,.65,.65,.65]]};
+  f['5']={w:.6,p:[[.6,0,0,0],[0,0,0,.5],[0,.5,.45,.5],[.45,.5,.6,.65],[.6,.65,.6,.87],[.6,.87,.5,1],[.5,1,.1,1],[.1,1,0,.88]]};
+  f['6']={w:.6,p:[[.55,.08,.3,0],[.3,0,.05,.12],[.05,.12,0,.3],[0,.3,0,.8],[0,.8,.1,.95],[.1,.95,.3,1],[.3,1,.55,.95],[.55,.95,.6,.8],[.6,.8,.6,.58],[.6,.58,.5,.5],[.5,.5,0,.5]]};
+  f['7']={w:.6,p:[[0,0,.6,0],[.6,0,.2,1]]};
+  f['8']={w:.6,p:[[.3,.5,.05,.4],[.05,.4,0,.25],[0,.25,.1,.1],[.1,.1,.3,0],[.3,0,.5,.1],[.5,.1,.6,.25],[.6,.25,.55,.4],[.55,.4,.3,.5],[.3,.5,.05,.62],[.05,.62,0,.78],[0,.78,.1,.93],[.1,.93,.3,1],[.3,1,.5,.93],[.5,.93,.6,.78],[.6,.78,.55,.62],[.55,.62,.3,.5]]};
+  f['9']={w:.6,p:[[.3,.5,.55,.56],[.55,.56,.6,.72],[.6,.72,.6,.18],[.6,.18,.5,.05],[.5,.05,.3,0],[.3,0,.1,.05],[.1,.05,0,.22],[0,.22,0,.42],[0,.42,.1,.5],[.1,.5,.3,.5]]};
+  f[' ']={w:.32,p:[]};
+  f['.']={w:.2,p:[[.1,.88,.1,1]]};
+  f[',']={w:.2,p:[[.1,.82,.04,1]]};
+  f['-']={w:.38,p:[[0,.5,.38,.5]]};
+  f["'"]={w:.18,p:[[.09,0,.05,.22]]};
+  f['&']={w:.72,p:[[.5,0,.2,0],[.2,0,0,.2],[0,.2,0,.4],[0,.4,.35,.72],[.35,.72,.58,1],[.58,1,.72,.84],[.72,.84,.35,.5],[.35,.5,0,.72],[0,.72,0,.86],[0,.86,.12,1],[.12,1,.35,1]]};
+  // Lowercase as slightly condensed uppercase
+  'abcdefghijklmnopqrstuvwxyz'.split('').forEach(c=>{
+    const u=f[c.toUpperCase()];
+    if(u) f[c]={w:u.w*.88,p:u.p.map(seg=>{
+      const s2=[];
+      for(let i=0;i<seg.length;i+=2) s2.push(seg[i],seg[i+1]*.75+.22);
+      return s2;
+    })};
+  });
+  return f;
+}
+const FONT_DATA = buildFont();
+
+// ════════════════════════════════════════
+// CANVAS SETUP
+// ════════════════════════════════════════
+function dtSetPanel(render=true){
+  const key = document.getElementById('dt-panel').value;
+  [DT.panelW,DT.panelH] = DT_PANELS[key]||[18,12];
+  dtFitCanvas();
+  if(render) dtRender();
+}
+
+function dtFitCanvas(){
+  const wrap = document.getElementById('dt-canvas-wrap');
+  if(!wrap) return;
+  const availW = wrap.clientWidth - 48;
+  const availH = wrap.clientHeight - 48;
+  DT.scale = Math.min(availW/DT.panelW, availH/DT.panelH, 52);
+  const svg = document.getElementById('dt-canvas');
+  const W = Math.round(DT.panelW*DT.scale);
+  const H = Math.round(DT.panelH*DT.scale);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  svg.style.width=W+'px'; svg.style.height=H+'px';
+}
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function dtRender(){
+  const svg = document.getElementById('dt-canvas');
+  if(!svg) return;
+  const W = DT.panelW*DT.scale, H = DT.panelH*DT.scale, s = DT.scale;
+  const m = DT_RULES.borderMargin*s;
+  const bg = FINISH_BG[document.getElementById('dt-finish').value]||'#1e1e1e';
+
+  let html = `<rect width="${W}" height="${H}" fill="${bg}" stroke="#555" stroke-width="1.5"/>`;
+  // Margin guide
+  html += `<rect x="${m}" y="${m}" width="${W-2*m}" height="${H-2*m}" fill="none" stroke="rgba(200,146,42,0.2)" stroke-width="1" stroke-dasharray="5,4"/>`;
+
+  // Render elements back-to-front
+  DT.elements.forEach(el=>{
+    const sel = el.id===DT.selected;
+    const sw = Math.max(0.8, s*0.035); // stroke width scales with canvas
+
+    if(el.type==='text'){
+      const paths = textToPaths(el.text,el.fontSize,el.x,el.y,s);
+      const lw = Math.max(0.7, el.fontSize*s*0.042);
+      paths.forEach(d=>{ html+=`<path d="${d}" fill="none" stroke="#ffffff" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"/>`; });
+      if(sel){const bb=elBounds(el); html+=selRect(bb.x*s,bb.y*s,bb.w*s,bb.h*s);}
+    }
+
+    if(el.type==='component'){
+      const paths = compPaths(el.compType,el.x,el.y,el.size||2,s);
+      const lw = Math.max(0.7, (el.size||2)*s*0.022);
+      paths.forEach(d=>{ html+=`<path d="${d}" fill="none" stroke="#ffffff" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round"/>`; });
+      if(sel){const sz=(el.size||2)*s; html+=selRect(el.x*s-sz/2,el.y*s-sz/2,sz,sz);}
+    }
+
+    if(el.type==='border'){
+      const bm=(DT_RULES.borderMargin+0.08)*s;
+      const bw=W-2*bm, bh=H-2*bm;
+      const lw=Math.max(0.8,s*.04);
+      html+=`<rect x="${bm}" y="${bm}" width="${bw}" height="${bh}" fill="none" stroke="white" stroke-width="${lw}"/>`;
+      if(el.borderType==='double'||el.borderType==='ornate'){
+        const g=s*0.13;
+        html+=`<rect x="${bm+g}" y="${bm+g}" width="${bw-2*g}" height="${bh-2*g}" fill="none" stroke="white" stroke-width="${lw*.7}"/>`;
+        if(el.borderType==='ornate'){
+          [[bm,bm],[bm+bw,bm],[bm,bm+bh],[bm+bw,bm+bh]].forEach(([cx,cy])=>{
+            const d2=g*.55;
+            html+=`<path d="M${cx},${cy-d2} L${cx+d2},${cy} L${cx},${cy+d2} L${cx-d2},${cy} Z" fill="white"/>`;
+          });
+        }
+      }
+      if(sel) html+=selRect(bm-3,bm-3,bw+6,bh+6);
+    }
+  });
+
+  // Violation overlays
+  const viols = checkRules();
+  viols.forEach(v=>{
+    if(v.rect){
+      const r=v.rect;
+      html+=`<rect x="${r.x*s}" y="${r.y*s}" width="${r.w*s}" height="${r.h*s}" fill="rgba(184,74,58,0.12)" stroke="rgba(184,74,58,0.7)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    }
+  });
+
+  svg.innerHTML = html;
+  updateRulesPanel(viols);
+  updateElementsList();
+  updateSelectedPanel();
+}
+
+function selRect(x,y,w,h){
+  return `<rect x="${x-3}" y="${y-3}" width="${w+6}" height="${h+6}" fill="none" stroke="rgba(200,146,42,0.9)" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+}
+
+// ════════════════════════════════════════
+// TEXT → SVG PATHS
+// ════════════════════════════════════════
+function textToPaths(text, fontSizeIn, cx, cy, scale){
+  const h = fontSizeIn*scale;
+  const paths = [];
+  let totalW = 0;
+  for(const ch of text){ totalW += ((FONT_DATA[ch]||FONT_DATA[' '])?.w||.4)*h; }
+  let px = cx*scale - totalW/2;
+  const py = cy*scale;
+  for(const ch of text){
+    const g = FONT_DATA[ch]||FONT_DATA[' '];
+    if(!g){px+=.35*h;continue;}
+    g.p.forEach(seg=>{
+      if(seg.length<4)return;
+      let d=`M${px+seg[0]*h},${py+seg[1]*h}`;
+      for(let i=2;i<seg.length;i+=2) d+=` L${px+seg[i]*h},${py+seg[i+1]*h}`;
+      paths.push(d);
+    });
+    px += (g.w||.4)*h;
+  }
+  return paths;
+}
+
+// ════════════════════════════════════════
+// TEXT → HPGL
+// ════════════════════════════════════════
+function textToHPGL(text, fontSizeIn, cx, cy){
+  const h = fontSizeIn*HPGL_UNITS;
+  const panelH = DT.panelH*HPGL_UNITS;
+  const cmds = [];
+  let totalW=0;
+  for(const ch of text){ totalW+=((FONT_DATA[ch]||FONT_DATA[' '])?.w||.4)*h; }
+  let px=cx*HPGL_UNITS-totalW/2;
+  const py=cy*HPGL_UNITS;
+  for(const ch of text){
+    const g=FONT_DATA[ch]||FONT_DATA[' '];
+    if(!g){px+=.35*h;continue;}
+    g.p.forEach(seg=>{
+      if(seg.length<4)return;
+      cmds.push(`PU${Math.round(px+seg[0]*h)},${Math.round(panelH-(py+seg[1]*h))};`);
+      for(let i=2;i<seg.length;i+=2)
+        cmds.push(`PD${Math.round(px+seg[i]*h)},${Math.round(panelH-(py+seg[i+1]*h))};`);
+    });
+    px+=(g.w||.4)*h;
+  }
+  return cmds;
+}
+
+// ════════════════════════════════════════
+// COMPONENT PATHS (SVG)
+// ════════════════════════════════════════
+function compPaths(type,cx,cy,sizeIn,scale){
+  const r=(sizeIn/2)*scale, x=cx*scale, y=cy*scale;
+  const paths=[];
+  if(type==='paw'){
+    paths.push(`M${x},${y+r*.25} C${x-r*.5},${y+r*.25} ${x-r*.55},${y+r} ${x},${y+r} C${x+r*.55},${y+r} ${x+r*.5},${y+r*.25} ${x},${y+r*.25} Z`);
+    [[-0.48,-0.52],[-0.16,-0.72],[0.18,-0.68],[0.52,-0.48]].forEach(([ox,oy])=>{
+      const tr=r*.18, tr2=r*.22;
+      paths.push(`M${x+ox*r-tr},${y+oy*r} A${tr},${tr2} 0 1,0 ${x+ox*r+tr},${y+oy*r} A${tr},${tr2} 0 1,0 ${x+ox*r-tr},${y+oy*r} Z`);
+    });
+  } else if(type==='rose'){
+    paths.push(`M${x},${y-r} C${x+r*.55},${y-r} ${x+r},${y-r*.3} ${x},${y} C${x-r},${y-r*.3} ${x-r*.55},${y-r} ${x},${y-r}`);
+    paths.push(`M${x},${y} C${x+r*.65},${y} ${x+r},${y+r*.5} ${x},${y+r*.85} C${x-r},${y+r*.5} ${x-r*.65},${y} ${x},${y}`);
+    paths.push(`M${x},${y+r*.5} L${x},${y+r*1.15}`);
+    paths.push(`M${x-r*.25},${y+r*.82} L${x-r*.55},${y+r*.62}`);
+    paths.push(`M${x+r*.2},${y+r*.9} L${x+r*.52},${y+r*.68}`);
+  } else if(type==='cross'){
+    const arm=r*.72;
+    paths.push(`M${x},${y-r} L${x},${y+r}`);
+    paths.push(`M${x-arm},${y-r*.28} L${x+arm},${y-r*.28}`);
+  } else if(type==='dove'){
+    paths.push(`M${x-r*.7},${y} C${x-r*.5},${y-r*.55} ${x+r*.2},${y-r*.82} ${x+r*.85},${y-r*.28}`);
+    paths.push(`M${x+r*.85},${y-r*.28} C${x+r*.5},${y-r*.08} ${x},${y+r*.32} ${x-r*.5},${y+r*.22}`);
+    paths.push(`M${x-r*.5},${y+r*.22} C${x-r*.72},${y+r*.1} ${x-r*.82},${y-r*.1} ${x-r*.7},${y}`);
+    paths.push(`M${x-r*.15},${y-r*.25} C${x+r*.12},${y-r*.95} ${x+r*.72},${y-r*.72} ${x+r*.5},${y-r*.1}`);
+  } else if(type==='heart'){
+    paths.push(`M${x},${y+r*.82} C${x-r*1.12},${y-r*.18} ${x-r},${y-r} ${x-r*.5},${y-r*.82} C${x-r*.2},${y-r*.62} ${x},${y-r*.38} ${x},${y-r*.18} C${x},${y-r*.38} ${x+r*.2},${y-r*.62} ${x+r*.5},${y-r*.82} C${x+r},${y-r} ${x+r*1.12},${y-r*.18} ${x},${y+r*.82} Z`);
+  } else if(type==='star'){
+    const pts=[];
+    for(let i=0;i<5;i++){
+      const a1=(i*72-90)*Math.PI/180, a2=(i*72+36-90)*Math.PI/180;
+      pts.push(`${x+Math.cos(a1)*r},${y+Math.sin(a1)*r}`);
+      pts.push(`${x+Math.cos(a2)*r*.42},${y+Math.sin(a2)*r*.42}`);
+    }
+    paths.push(`M${pts.join(' L')} Z`);
+  }
+  return paths;
+}
+
+// ════════════════════════════════════════
+// ELEMENT BOUNDING BOX (inches)
+// ════════════════════════════════════════
+function elBounds(el){
+  if(el.type==='text'){
+    const h=el.fontSize;
+    let w=0;
+    for(const ch of el.text) w+=((FONT_DATA[ch]||FONT_DATA[' '])?.w||.4)*h;
+    return {x:el.x-w/2,y:el.y,w,h:h*1.15};
+  }
+  if(el.type==='component'){ const sz=el.size||2; return {x:el.x-sz/2,y:el.y-sz/2,w:sz,h:sz}; }
+  if(el.type==='border'){const m=DT_RULES.borderMargin+.1; return {x:m,y:m,w:DT.panelW-2*m,h:DT.panelH-2*m}; }
+  return {x:el.x,y:el.y,w:1,h:1};
+}
+
+// ════════════════════════════════════════
+// RULE CHECKER
+// ════════════════════════════════════════
+function checkRules(){
+  const viols=[], m=DT_RULES.borderMargin;
+  DT.elements.forEach(el=>{
+    const bb=elBounds(el);
+    const label=el.type==='text'?`"${el.text}"`:el.compType||el.borderType||el.type;
+    if(el.type!=='border'){
+      if(bb.x<m) viols.push({msg:`${label} past left margin`,rect:bb});
+      if(bb.y<m) viols.push({msg:`${label} past top margin`,rect:bb});
+      if(bb.x+bb.w>DT.panelW-m) viols.push({msg:`${label} past right margin`,rect:bb});
+      if(bb.y+bb.h>DT.panelH-m) viols.push({msg:`${label} past bottom margin`,rect:bb});
+    }
+    if(el.type==='text'&&el.fontSize<DT_RULES.minTextHeight)
+      viols.push({msg:`${label} below min height (${DT_RULES.minTextHeight}")`,rect:bb});
+    DT.elements.forEach(el2=>{
+      if(el2.id<=el.id||el2.type==='border'||el.type==='border') return;
+      const bb2=elBounds(el2), g=DT_RULES.elementGap;
+      if(bb.x+bb.w+g>bb2.x&&bb2.x+bb2.w+g>bb.x&&bb.y+bb.h+g>bb2.y&&bb2.y+bb2.h+g>bb.y)
+        viols.push({msg:`Elements overlapping or too close`,rect:{x:Math.min(bb.x,bb2.x),y:Math.min(bb.y,bb2.y),w:Math.max(bb.x+bb.w,bb2.x+bb2.w)-Math.min(bb.x,bb2.x),h:Math.max(bb.y+bb.h,bb2.y+bb2.h)-Math.min(bb.y,bb2.y)}});
+    });
+  });
+  return viols;
+}
+
+function updateRulesPanel(viols){
+  const panel=document.getElementById('dt-rules-panel');
+  const status=document.getElementById('dt-rule-status');
+  const approveBtn=document.getElementById('dt-approve-btn');
+  if(!panel) return;
+  if(!DT.elements.length){
+    panel.innerHTML='<div class="rule-ok">Add elements to check rules</div>';
+    status.textContent=''; status.className='dt-rule-status badge';
+    approveBtn.disabled=true; return;
+  }
+  if(!viols.length){
+    panel.innerHTML='<div class="rule-ok">✓ All rules pass</div>';
+    status.textContent='✓ Rules OK'; status.className='dt-rule-status badge badge-ok';
+    approveBtn.disabled=false;
+  } else {
+    panel.innerHTML=viols.map(v=>`<div class="rule-err">⚠ ${v.msg}</div>`).join('');
+    status.textContent=`⚠ ${viols.length} issue${viols.length>1?'s':''}`;
+    status.className='dt-rule-status badge badge-err';
+    approveBtn.disabled=true;
+  }
+}
+
+function updateElementsList(){
+  const list=document.getElementById('dt-elements-list');
+  if(!list) return;
+  if(!DT.elements.length){list.innerHTML='<div style="color:var(--muted)">No elements</div>';return;}
+  list.innerHTML=DT.elements.map(el=>{
+    const label=el.type==='text'?`"${el.text}" (${el.fontSize}")`
+      :el.type==='component'?`${el.compType} (${el.size||2}")`
+      :`${el.borderType} border`;
+    return `<div class="el-item${el.id===DT.selected?' selected':''}" onclick="dtSelect(${el.id})">${label}</div>`;
+  }).join('');
+}
+
+function updateSelectedPanel(){
+  const p=document.getElementById('dt-selected-panel');
+  const lbl=document.getElementById('dt-selected-label');
+  if(!p||!lbl) return;
+  const el=DT.elements.find(e=>e.id===DT.selected);
+  if(el){
+    p.style.display='';
+    lbl.textContent=el.type==='text'?`"${el.text}" — ${el.fontSize}"`:el.compType||el.borderType||el.type;
+  } else { p.style.display='none'; }
+}
+
+// ════════════════════════════════════════
+// INTERACTION
+// ════════════════════════════════════════
+function dtSelect(id){ DT.selected=id; dtRender(); }
+
+function dtCanvasClick(e){
+  if(dragState&&(Math.abs(e.clientX-dragState.startClientX)>4||Math.abs(e.clientY-dragState.startClientY)>4)) return;
+  const [mx,my]=svgCoords(e);
+  let found=null;
+  for(let i=DT.elements.length-1;i>=0;i--){
+    const el=DT.elements[i], bb=elBounds(el);
+    if(mx>=bb.x-.12&&mx<=bb.x+bb.w+.12&&my>=bb.y-.12&&my<=bb.y+bb.h+.12){found=el.id;break;}
+  }
+  DT.selected=found; dtRender();
+}
+
+function dtCanvasDown(e){
+  if(!DT.selected) return;
+  const [mx,my]=svgCoords(e);
+  const el=DT.elements.find(e=>e.id===DT.selected);
+  if(!el||el.type==='border') return;
+  dragState={elId:DT.selected,startMx:mx,startMy:my,startElX:el.x,startElY:el.y,startClientX:e.clientX,startClientY:e.clientY};
+  e.preventDefault();
+}
+
+function dtCanvasDrag(e){
+  if(!dragState||!e.buttons) return;
+  const [mx,my]=svgCoords(e);
+  const el=DT.elements.find(e=>e.id===dragState.elId);
+  if(!el) return;
+  el.x=dragState.startElX+(mx-dragState.startMx);
+  el.y=dragState.startElY+(my-dragState.startMy);
+  dtRender();
+}
+
+function dtCanvasUp(){ dragState=null; }
+
+function svgCoords(e){
+  const svg=document.getElementById('dt-canvas');
+  const r=svg.getBoundingClientRect();
+  return [(e.clientX-r.left)/DT.scale,(e.clientY-r.top)/DT.scale];
+}
+
+// ════════════════════════════════════════
+// ADD ELEMENTS
+// ════════════════════════════════════════
+function dtAddText(){
+  const text=document.getElementById('dt-text-input').value.trim();
+  if(!text){showToast('Enter text first','red');return;}
+  DT.elements.push({
+    id:Date.now(),type:'text',text,
+    font:document.getElementById('dt-font-select').value,
+    fontSize:parseFloat(document.getElementById('dt-font-size').value)||1,
+    x:DT.panelW/2,y:DT.panelH/2,
+  });
+  document.getElementById('dt-text-input').value='';
+  DT.selected=DT.elements[DT.elements.length-1].id;
+  dtRender();
+}
+
+function dtAddComponent(type){
+  DT.elements.push({
+    id:Date.now(),type:'component',compType:type,
+    size:parseFloat(document.getElementById('dt-comp-size').value)||2,
+    x:DT.panelW/2,y:DT.panelH/2,
+  });
+  DT.selected=DT.elements[DT.elements.length-1].id;
+  dtRender();
+}
+
+function dtAddBorder(borderType){
+  DT.elements=DT.elements.filter(e=>e.type!=='border');
+  DT.elements.unshift({id:Date.now(),type:'border',borderType});
+  DT.selected=DT.elements[0].id;
+  dtRender();
+}
+
+function dtRemoveBorder(){
+  DT.elements=DT.elements.filter(e=>e.type!=='border');
+  DT.selected=null; dtRender();
+}
+
+function dtMoveSelected(dir){
+  const el=DT.elements.find(e=>e.id===DT.selected);
+  if(!el||el.type==='border') return;
+  const step=0.125;
+  if(dir==='up')    el.y-=step;
+  if(dir==='down')  el.y+=step;
+  if(dir==='left')  el.x-=step;
+  if(dir==='right') el.x+=step;
+  dtRender();
+}
+
+function dtScaleSelected(factor){
+  const el=DT.elements.find(e=>e.id===DT.selected);
+  if(!el) return;
+  if(el.type==='text')      el.fontSize=Math.max(.25,(el.fontSize||1)*factor);
+  if(el.type==='component') el.size=Math.max(.5,(el.size||2)*factor);
+  dtRender();
+}
+
+function dtDeleteSelected(){
+  DT.elements=DT.elements.filter(e=>e.id!==DT.selected);
+  DT.selected=null; dtRender();
+}
+
+function dtClearAll(){
+  if(!confirm('Clear all elements from canvas?')) return;
+  DT.elements=[]; DT.selected=null; dtRender();
+}
+
+// ════════════════════════════════════════
+// PLT / HPGL EXPORT
+// ════════════════════════════════════════
+function dtGeneratePLT(){
+  const cmds=['IN;','SP1;','VS10;','PA;'];
+  const pH=DT.panelH*HPGL_UNITS, pW=DT.panelW*HPGL_UNITS;
+  DT.elements.forEach(el=>{
+    if(el.type==='text') textToHPGL(el.text,el.fontSize,el.x,el.y).forEach(c=>cmds.push(c));
+    if(el.type==='component'){
+      // Polygon approximation
+      const r=(el.size||2)/2*HPGL_UNITS, cx=el.x*HPGL_UNITS, cy=pH-el.y*HPGL_UNITS;
+      if(el.compType==='cross'){
+        cmds.push(`PU${Math.round(cx)},${Math.round(cy+r)};PD${Math.round(cx)},${Math.round(cy-r)};PU;`);
+        cmds.push(`PU${Math.round(cx-r*.72)},${Math.round(cy+r*.28)};PD${Math.round(cx+r*.72)},${Math.round(cy+r*.28)};PU;`);
+      } else {
+        const steps=32; let first=true;
+        for(let i=0;i<=steps;i++){
+          const a=(i/steps)*Math.PI*2;
+          const px=Math.round(cx+Math.cos(a)*r), py=Math.round(cy+Math.sin(a)*r);
+          cmds.push(first?`PU${px},${py};`:`PD${px},${py};`); first=false;
+        }
+        cmds.push('PU;');
+      }
+    }
+    if(el.type==='border'){
+      const bm=(DT_RULES.borderMargin+.08)*HPGL_UNITS;
+      const bw=pW-2*bm, bh=pH-2*bm;
+      cmds.push(`PU${Math.round(bm)},${Math.round(bm)};PD${Math.round(bm+bw)},${Math.round(bm)};PD${Math.round(bm+bw)},${Math.round(bm+bh)};PD${Math.round(bm)},${Math.round(bm+bh)};PD${Math.round(bm)},${Math.round(bm)};PU;`);
+      if(el.borderType==='double'||el.borderType==='ornate'){
+        const g=.13*HPGL_UNITS;
+        cmds.push(`PU${Math.round(bm+g)},${Math.round(bm+g)};PD${Math.round(bm+bw-g)},${Math.round(bm+g)};PD${Math.round(bm+bw-g)},${Math.round(bm+bh-g)};PD${Math.round(bm+g)},${Math.round(bm+bh-g)};PD${Math.round(bm+g)},${Math.round(bm+g)};PU;`);
+      }
+    }
+  });
+  cmds.push('PU0,0;','SP0;');
+  return cmds.join('\n');
+}
+
+function dtExportPLT(){
+  const plt=dtGeneratePLT();
+  const blob=new Blob([plt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`${soId||'design'}.plt`; a.click();
+  URL.revokeObjectURL(url);
+  showToast('PLT exported','green');
+}
+
+// ════════════════════════════════════════
+// SAVE / APPROVE
+// ════════════════════════════════════════
+async function saveDraft(){
+  const designData=JSON.stringify({elements:DT.elements,panelW:DT.panelW,panelH:DT.panelH,finish:document.getElementById('dt-finish').value});
+  const plt=dtGeneratePLT();
+  const revNum=DT.revisions.length+1;
+  try {
+    await post('so_designs',{so_id:soId,revision:revNum,design_data:designData,plt_data:plt,status:'draft'});
+    showToast(`Draft revision ${revNum} saved`,'green');
+    const revs=await get('so_designs',`?so_id=eq.${soId}&order=revision`);
+    DT.revisions=revs||[];
+    renderRevisionList();
+  } catch(e){ showToast('Save failed: '+e.message,'red'); }
+}
+
+async function approveDesign(){
+  const viols=checkRules();
+  if(viols.length){showToast('Fix rule violations before approving','red');return;}
+  if(!confirm('Approve this design?\n\nThis will:\n• Lock the design\n• Auto-create the Work Order\n• Download the PLT file')) return;
+
+  const btn=document.getElementById('dt-approve-btn');
+  btn.disabled=true; btn.textContent='Approving…';
+
+  try {
+    const designData=JSON.stringify({elements:DT.elements,panelW:DT.panelW,panelH:DT.panelH,finish:document.getElementById('dt-finish').value,approvedAt:new Date().toISOString()});
+    const plt=dtGeneratePLT();
+    const revNum=DT.revisions.length+1;
+
+    // Save approved design
+    await post('so_designs',{so_id:soId,revision:revNum,design_data:designData,plt_data:plt,status:'approved'});
+
+    // Create WO
+    const [prods]=await Promise.all([get('products',`?sku=eq.${SO.product_sku}&limit=1`)]);
+    const prod=prods[0];
+    const woNums=await get('work_orders','?select=id&order=created_at.desc&limit=1');
+    const lastWO=woNums[0]?.id||'WO-5000';
+    const woNum=parseInt(lastWO.replace('WO-',''))+1;
+    const woId=`WO-${woNum}`;
+
+    await post('work_orders',{
+      id:woId,so_id:soId,product_sku:SO.product_sku,
+      product_name:prod?.name||SO.product_sku,customer:SO.customer,
+      engraving_text:SO.engraving_text,font:SO.font,layout:SO.layout,
+      size:prod?.size||'',notes:SO.notes,
+      current_step:'engrave',status:'Engrave',
+      labor_rate:prod?.labor_rate||25,order_date:SO.order_date,
+    });
+
+    // Update SO
+    await patch('sales_orders',{status:'In Production',wo_id:woId},`?id=eq.${soId}`);
+
+    // Download PLT
+    const blob=new Blob([plt],{type:'text/plain'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`${soId}_approved.plt`; a.click();
+    URL.revokeObjectURL(url);
+
+    showToast(`✓ Approved — ${woId} created, PLT downloaded`,'green');
+    btn.textContent='✓ Approved';
+
+    // Update revision list display
+    const revs=await get('so_designs',`?so_id=eq.${soId}&order=revision`);
+    DT.revisions=revs||[]; renderRevisionList();
+
+  } catch(e){
+    showToast('Error: '+e.message,'red');
+    btn.disabled=false; btn.textContent='✓ Approve & Create WO';
+  }
+}
+
+function loadRevisionData(rev){
+  try {
+    const data=JSON.parse(rev.design_data);
+    DT.elements=data.elements||[];
+    DT.panelW=data.panelW||18;
+    DT.panelH=data.panelH||12;
+    if(data.finish) document.getElementById('dt-finish').value=data.finish;
+    dtFitCanvas(); dtRender();
+  } catch(e){ showToast('Could not load revision','red'); }
+}
+
+function renderRevisionList(){
+  const list=document.getElementById('dt-revisions-list');
+  if(!list) return;
+  if(!DT.revisions.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);">No revisions yet</div>';return;}
+  list.innerHTML=DT.revisions.map(r=>`
+    <div class="rev-item${r.status==='approved'?' approved':''}">
+      <div>
+        <div style="font-family:'Syne Mono',monospace;font-size:10px;color:${r.status==='approved'?'var(--green)':'var(--text)'}">
+          Rev ${r.revision} ${r.status==='approved'?'✓ Approved':''}
+        </div>
+        <div style="font-size:9px;color:var(--muted);">${new Date(r.created_at).toLocaleDateString()}</div>
+      </div>
+      ${r.status!=='approved'?`<button class="btn btn-ghost btn-sm" style="width:auto;padding:3px 8px;" onclick="loadRevisionData(${JSON.stringify(r).replace(/"/g,'&quot;')})">Load</button>`:''}
+    </div>`).join('');
+}
+</script>
+</body>
+</html>
